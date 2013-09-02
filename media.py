@@ -11,6 +11,7 @@ from time import time, sleep
 from local_storage import LocalStorage
 from threading import Thread
 from queue import Queue, Empty
+from math import ceil
 
 class MPlayerThread(Thread):
     def __init__(self):
@@ -30,11 +31,15 @@ class MPlayerThread(Thread):
             sleep(1)
             self.properties = {
                             'filename': None,
-                            'volume': None,
+                            'volume': 0,
                             'pause': None,
-                            'percent_pos': None,
+                            'length': 0,
+                            'time_pos': 0,
+                            'percent_pos': 0,
+                            'time_left': 0,
                             }
             for p in self.properties.keys():
+                if p == 'time_left': continue
                 self.process.stdin.write(('get_property %s\n' % p).encode())
                 self.process.stdin.flush()
 
@@ -50,6 +55,18 @@ class MPlayerThread(Thread):
             if re.search('^ANS_.*=.*$', line):
                 k, v = line.replace('ANS_', '').replace('\n', '').split('=')
                 self.properties[k] = v
+            try:
+                self.properties['volume'] = float(self.properties['volume'])
+                self.properties['length'] = float(self.properties['length'])
+                self.properties['time_pos'] = float(self.properties['time_pos'])
+                self.properties['time_left'] = ceil(self.properties['length'] - self.properties['time_pos'])
+                self.properties['percent_pos'] = int(self.properties['percent_pos'])
+            except BaseException:
+                self.properties['volume'] = 0
+                self.properties['length'] = 0
+                self.properties['percent_pos'] = 0
+                self.properties['time_left'] = 0
+                self.properties['percent_pos'] = 0
 
 class YoutubeDLThread(Thread):
     PROPERTIES_TEMPLATE = {
@@ -105,6 +122,12 @@ class YoutubeDLThread(Thread):
                 self.downloads[dlid] = {}
                 for k, v in self.PROPERTIES_TEMPLATE.items():
                     self.downloads[dlid][k] = v
+
+                if os.path.isfile(os.path.join(download_dir, dlid)):
+                    logging.debug('File already exists: %s' % dlid)
+                    self.downloads[dlid]['percent'] = '1000.0%'
+                    self.downloads[dlid]['status'] = 'complete'
+                    return None
 
                 process_args = []
                 for x in self.PROCESS_TEMPLATE:
@@ -199,6 +222,7 @@ class SubredditMediaPlayer(Thread):
             self.playtime = time()
             self.mp.process.stdin.write(('loadfile "%s"\n' % f_path).encode())
             self.mp.process.stdin.flush()
+            self.buffering = False
             self.local_storage[self.playlist[idx]['id']] = {
                 'playtime': self.playtime,
                 'voted': 0,
@@ -217,7 +241,6 @@ class SubredditMediaPlayer(Thread):
                 if status['status'] == 'downloading': print(status['percent'])
                 if (status['status'] == 'complete') or (status['status'] == 'idle'): break
             logging.debug('Download finished. Running play function again: %s' % idx)
-            self.buffering = False
             self.play(idx)
 
     def next(self):
