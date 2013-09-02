@@ -219,10 +219,11 @@ class SubredditMediaPlayer(Thread):
         if os.path.isfile(f_path):
             logging.debug('File exists. Loading file to mplayer process: %s' % idx)
             self.idx = idx
+            self.buffering = False
             self.playtime = time()
             self.mp.process.stdin.write(('loadfile "%s"\n' % f_path).encode())
+            self.mp.process.stdin.write('get_property filename\n'.encode())
             self.mp.process.stdin.flush()
-            self.buffering = False
             self.local_storage[self.playlist[idx]['id']] = {
                 'playtime': self.playtime,
                 'voted': 0,
