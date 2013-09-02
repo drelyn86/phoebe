@@ -6,6 +6,7 @@ except ImportError: # Python2
     from urllib2 import urlopen, Request
 finally: # Cross-Compatible
     import re
+    import logging
     from bs4 import BeautifulSoup
     from json import loads
 
@@ -15,6 +16,7 @@ class Subreddit(object):
     USER_AGENT = 'phoebe/0.1 by drelyn86'
 
     def __init__(self, name, sort='hot', limit='25'):
+        logging.debug('Initializing subreddit object: %s' % name)
         self.name = name
         self.sort = sort
         self.limit = limit
@@ -22,7 +24,9 @@ class Subreddit(object):
 
     @property
     def links(self):
+        logging.debug('Requesting json info from reddit')
         request = Request(self.json_url, headers={'User-Agent': Subreddit.USER_AGENT})
+        logging.debug('Processing json data')
         js = loads(urlopen(request).read().decode())
         playable_links = []
         for x in js['data']['children']:
@@ -38,10 +42,12 @@ class SRManager(object):
         self.subscribed_subreddits = []
 
     def get_recommended_subreddits():
+        logging.debug('Fetching list from /r/Music wiki')
         wiki_list_url = 'http://www.reddit.com/r/Music/wiki/musicsubreddits'
         list_page_html = urlopen(wiki_list_url).read()
         bs = BeautifulSoup(list_page_html)
 
+        logging.debug('Processing wiki html')
         mdwiki = bs.find_all(attrs={'class': ['wiki','mkd']})[0]
 
         # We don't want anything south of the "Images" header
