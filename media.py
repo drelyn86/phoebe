@@ -202,12 +202,14 @@ class SubredditMediaPlayer(Thread):
         self.idx = idx
 
     def download(self, idx):
-        logging.debug('Putting playlist item in download queue: %s' % idx)
         f_path = os.path.join(self.download_dir, self.playlist[idx]['id'])
-        if os.path.isfile(f_path): return None
-        self.dlq.put({'id': self.playlist[idx]['id'],
-                      'url': self.playlist[idx]['url'].replace('&amp;', '&'),
-                      'download_dir': self.download_dir})
+        if os.path.isfile(f_path):
+            logging.debug('Playlist item exists. Skipping download: %s' % idx)
+        else:
+            logging.debug('Putting playlist item in download queue: %s' % idx)
+            self.dlq.put({'id': self.playlist[idx]['id'],
+                          'url': self.playlist[idx]['url'].replace('&amp;', '&'),
+                          'download_dir': self.download_dir})
 
     def play(self, idx):
         logging.debug('Playing playlist item: %s' % idx)
