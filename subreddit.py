@@ -12,7 +12,7 @@ finally: # Cross-Compatible
 
 class Subreddit(object):
 
-    SUPPORTED_DOMAINS = ('youtube.com', 'soundcloud.com')
+    SUPPORTED_DOMAINS = ('youtube.com', 'soundcloud.com', 'vimeo.com')
     USER_AGENT = 'phoebe/0.1 by drelyn86'
 
     def __init__(self, name, sort='hot', limit='25'):

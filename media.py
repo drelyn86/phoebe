@@ -93,7 +93,7 @@ class YoutubeDLThread(Thread):
         logging.debug('Running youtube-dl parse thread for dlid: %s' % dlid)
         while self.downloads[dlid]['process'].poll() is None:
             line = self.downloads[dlid]['process'].stdout.readline().decode()
-            if re.search('^\[(youtube|soundcloud)\] *', line):
+            if re.search('^\[(youtube|soundcloud|vimeo)\] *', line):
                 self.downloads[dlid]['status'] = line
             elif re.search('^\[download\] Destination: ', line):
                 self.downloads[dlid]['status'] = 'downloading'
