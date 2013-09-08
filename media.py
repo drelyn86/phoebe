@@ -181,7 +181,8 @@ class SubredditMediaPlayer(Thread):
         logging.debug('Running SubredditMediaPlayer thread')
         while True:
             sleep(1)
-            if self.playing and self.has_next and not (self.mp.properties['filename'] or self.buffering):
+            if self.playing and self.has_next and (self.mp.properties['time_left'] == 1) and not self.buffering:
+                sleep(1)
                 logging.debug('End of file')
                 self.next()
             elif self.playing and not self.has_next and not (self.mp_properties['filename'] or self.buffering):
