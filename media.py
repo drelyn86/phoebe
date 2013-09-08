@@ -64,7 +64,7 @@ class MPlayerThread(Thread):
             except BaseException:
                 self.properties['volume'] = 0
                 self.properties['length'] = 0
-                self.properties['percent_pos'] = 0
+                self.properties['time_pos'] = 0
                 self.properties['time_left'] = 0
                 self.properties['percent_pos'] = 0
 
