@@ -158,7 +158,7 @@ class SubredditMediaPlayer(Thread):
         self.buffering = False
 
         self.config_dir = config_dir
-        self.local_storage = LocalStorage(os.path.join(config_dir, 'storage.json'))
+        self.history = LocalStorage(os.path.join(config_dir, 'history.json'))
 
         self.download_dir = download_dir
 
@@ -227,7 +227,7 @@ class SubredditMediaPlayer(Thread):
             self.mp.process.stdin.write(('loadfile "%s"\n' % f_path).encode())
             self.mp.process.stdin.write('get_property filename\n'.encode())
             self.mp.process.stdin.flush()
-            self.local_storage[self.playlist[idx]['id']] = {
+            self.history[self.playlist[idx]['id']] = {
                 'playtime': self.playtime,
                 'voted': 0,
                 'subreddit': self.playlist[idx]['subreddit'],
