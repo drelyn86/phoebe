@@ -7,6 +7,7 @@ except ImportError: # Python2
 finally: # Cross-Compatible
     import re
     import logging
+    from null import Null
     from bs4 import BeautifulSoup
     from json import loads
 
@@ -15,8 +16,10 @@ class Subreddit(object):
     SUPPORTED_DOMAINS = ('youtube.com', 'soundcloud.com', 'vimeo.com')
     USER_AGENT = 'phoebe/0.1 by drelyn86'
 
-    def __init__(self, name, sort='hot', limit='25'):
-        logging.debug('Initializing subreddit object: %s' % name)
+    def __init__(self, name, sort='hot', limit='25', logger=Null()):
+        self.logger = logger
+        self.log = self.logger.getLogger('phoebe.subreddit.Subreddit')
+        self.log.debug('Subreddit object initialized: %s' % name)
         self.name = name
         self.sort = sort
         self.limit = limit
@@ -24,30 +27,32 @@ class Subreddit(object):
 
     @property
     def links(self):
-        logging.debug('Requesting json info from reddit')
+        self.log.info('Requesting json info from reddit')
         request = Request(self.json_url, headers={'User-Agent': Subreddit.USER_AGENT})
-        logging.debug('Processing json data')
+        self.log.info('Processing json data')
         js = loads(urlopen(request).read().decode())
         playable_links = []
         for x in js['data']['children']:
             data = x['data']
-            #if data['id'] in self.links.keys(): continue
             if data['domain'] not in Subreddit.SUPPORTED_DOMAINS: continue
             playable_links.append(data)
         return playable_links
 
 class SRManager(object):
 
-    def __init__(self):
+    def __init__(self, logger=Null()):
+        self.logger = logger
+        self.log = self.logger.getLogger('phoebe.subreddit.SRManager')
+        self.log.debug('SRManager object initialized')
         self.subscribed_subreddits = []
 
     def get_recommended_subreddits():
-        logging.debug('Fetching list from /r/Music wiki')
+        self.log.info('Fetching list from /r/Music wiki')
         wiki_list_url = 'http://www.reddit.com/r/Music/wiki/musicsubreddits'
         list_page_html = urlopen(wiki_list_url).read()
         bs = BeautifulSoup(list_page_html)
 
-        logging.debug('Processing wiki html')
+        self.log.debug('Processing wiki html')
         mdwiki = bs.find_all(attrs={'class': ['wiki','mkd']})[0]
 
         # We don't want anything south of the "Images" header
