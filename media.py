@@ -209,8 +209,12 @@ class SubredditMediaPlayer(Thread):
         self.buffering = False
 
         self.config_dir = config_dir
+
         self.log.debug('Loading history file')
         self.history = LocalStorage(os.path.join(config_dir, 'history.json'))
+
+        self.log.debug('Loading settings file')
+        self.settings = LocalStorage(os.path.join(config_dir, 'settings.json'))
 
         self.download_dir = download_dir
 
@@ -279,14 +283,26 @@ class SubredditMediaPlayer(Thread):
             self.mp.process.stdin.write(('loadfile "%s"\n' % f_path).encode())
             self.mp.process.stdin.write('get_property filename\n'.encode())
             self.mp.process.stdin.flush()
+            if self.playlist[idx]['id'] in self.history.keys():
+                voted = self.history[self.playlist[idx]['id']]['voted']
+            else:
+                voted = 0
             self.history[self.playlist[idx]['id']] = {
                 'playtime': self.playtime,
-                'voted': 0,
+                'voted': voted,
                 'subreddit': self.playlist[idx]['subreddit'],
                 }
             self.download(idx+1)
         else:
             self.log.debug('File does not exist. Need to buffer/download first: %s' % idx)
+            if self.playlist[idx]['id'] in self.dl.downloads.keys():
+                status = self.dl.downloads[self.playlist[idx]['id']]
+                if (status['process'].poll() is not None) and (status['status'] is not 'complete'):
+                    self.log.info('Previous download attempt failed. Skipping: %s' % idx)
+                    self.log.info('Error from download process: %s' % status['error'])
+                    self.playlist[idx]['filter'] = 'download_failed'
+                    self.next()
+                    return None
             print("Buffering...")
             self.buffering = True
             self.download(idx)
@@ -296,13 +312,26 @@ class SubredditMediaPlayer(Thread):
                 status = self.dl.downloads[dlid]
                 if status['status'] == 'downloading': print(status['percent'])
                 if (status['status'] == 'complete') or (status['status'] == 'idle'): break
+                if (status['process'].poll() is not None) and (status['status'] is not 'complete'):
+                    self.log.info('Download attempt failed. Skipping: %s' % idx)
+                    self.log.info('Error from download process: %s' % status['error'])
+                    self.playlist[idx]['filter'] = 'download_failed'
+                    self.next()
+                    return None
             self.log.debug('Download finished. Running play function again: %s' % idx)
             self.play(idx)
 
     def next(self):
         self.log.debug('Next')
         if self.has_next:
-            self.play(self.idx+1)
+            for idx in range(self.idx+1, len(self.playlist)):
+                self.idx = idx
+                if not 'filter' in self.playlist[idx].keys():
+                    self.play(idx)
+                    break
+                else:
+                    reason = self.playlist[idx]['filter']
+                    self.log.debug('Skipping playlist item %s due to filter: %s' % (idx, reason))
 
     def previous(self):
         if time() - self.playtime > 10:
@@ -325,11 +354,18 @@ class SubredditMediaPlayer(Thread):
         self.mp.process.stdin.flush()
         self.playing = False
 
-    def upvote(self, idx):
-        # TODO
-        return 0
+    def upvote(self):
+        if self.playlist[self.idx]['id'] in self.history.keys():
+            self.log.debug('upvoting')
+            hist = self.history[self.playlist[self.idx]['id']]
+            hist['voted'] = 1
+            self.history[self.playlist[self.idx]['id']] = hist
 
-    def downvote(self, idx):
-        # TODO
-        return 0
+    def downvote(self):
+        if self.playlist[self.idx]['id'] in self.history.keys():
+            self.log.debug('downvoting')
+            hist = self.history[self.playlist[self.idx]['id']]
+            hist['voted'] = -1
+            self.history[self.playlist[self.idx]['id']] = hist
+            self.next()
 
