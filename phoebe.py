@@ -4,6 +4,7 @@ from download import DLThread
 from local_storage import LocalStorage
 from mplayer import MPlayerThread
 from null import Null
+from reddit import Reddit
 from subprocess import Popen, PIPE
 from threading import Thread
 from time import time, sleep
@@ -28,10 +29,15 @@ class Phoebe(Thread):
         self.config_dir = config_dir
 
         self.log.debug('Loading history file')
-        self.history = LocalStorage(path.join(config_dir, 'history.json'))
+        self.history = LocalStorage(path.join(config_dir, 'history.json'), logger=self.logger)
 
         self.log.debug('Loading settings file')
-        self.settings = LocalStorage(path.join(config_dir, 'settings.json'))
+        self.settings = LocalStorage(path.join(config_dir, 'settings.json'), logger=self.logger)
+
+        self.reddit = Reddit(logger=self.logger)
+        if ('reddit_username' in self.settings.keys()) \
+          and ('reddit_password' in self.settings.keys()):
+            self.reddit.login(self.settings['reddit_username'], self.settings['reddit_password'])
 
         self.mpq = Queue()
         if self.settings['backend'] == 'mplayer':
@@ -173,6 +179,8 @@ class Phoebe(Thread):
             hist = self.history[self.playlist[self.idx]['id']]
             hist['voted'] = 1
             self.history[self.playlist[self.idx]['id']] = hist
+        if self.reddit.logged_in:
+            self.reddit.upvote(self.playlist[self.idx]['id'])
 
     def downvote(self):
         if self.playlist[self.idx]['id'] in self.history.keys():
@@ -180,5 +188,7 @@ class Phoebe(Thread):
             hist = self.history[self.playlist[self.idx]['id']]
             hist['voted'] = -1
             self.history[self.playlist[self.idx]['id']] = hist
-            self.next()
+        if self.reddit.logged_in:
+            self.reddit.downvote(self.playlist[self.idx]['id'])
+        self.next()
 

@@ -39,15 +39,21 @@ class Reddit(object):
         self.log.debug(response)
         js = loads(response)
         self.modhash = js['json']['data']['modhash']
+        self.cookie = js['json']['data']['cookie']
         self.headers['X-Modhash'] = self.modhash
+        self.headers['Cookie'] = 'reddit_session=%s' % self.cookie
         return True
+
+    @property
+    def logged_in(self):
+        return self.modhash is not None
 
     def upvote(self, id):
         self.log.debug('upvoting: %s' % id)
         if self.modhash:
             data = urlencode({'id': 't3_%s' % id, 'dir': 1}).encode()
             request = Request(self.api('vote'), headers=self.headers, data=data)
-            response = urlopen(Request).read().decode()
+            response = urlopen(request).read().decode()
             self.log.debug(response)
         else:
             self.log.warning('cannot cast vote to reddit. not logged in')
@@ -56,8 +62,8 @@ class Reddit(object):
         self.log.debug('downvoting: %s' % id)
         if self.modhash:
             data = urlencode({'id': 't3_%s' % id, 'dir': -1}).encode()
-            request = Request(self.api('vote', headers=self.headers, data=data))
-            response = urlopen(Request).read().decode()
+            request = Request(self.api('vote'), headers=self.headers, data=data)
+            response = urlopen(request).read().decode()
             self.log.debug(response)
         else:
             self.log.warning('cannot cast vote to reddit. not logged in')
@@ -83,7 +89,7 @@ class Subreddit(object):
         js = loads(urlopen(request).read().decode())
         link_list = []
         for x in js['data']['children']:
-            link_list.append(x)
+            link_list.append(x['data'])
         return link_list
 
 class SRManager(object):
@@ -100,7 +106,7 @@ class SRManager(object):
     def filter_links(self, links):
         filtered_list = []
         for x in links:
-            if x['data']['domain'] in SRManager.SUPPORTED_DOMAINS:
+            if x['domain'] in SRManager.SUPPORTED_DOMAINS:
                 filtered_list.append(x)
         return filtered_list
 
