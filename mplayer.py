@@ -23,13 +23,17 @@ class MPlayerThread(Thread):
         self.parse_output_thread = Thread(target=self.parse_output)
         self.parse_output_thread.daemon = True
 
+        self.parse_errors_thread = Thread(target=self.parse_errors)
+        self.parse_errors_thread.daemon = True
+
     def run(self):
         self.log.debug('Running MPlayerThread')
-        self.log.debug('Opening mplayer process')
+        self.log.info('Opening mplayer process')
         self.process = Popen(['mplayer', '-vo', 'null', '-slave', '-idle',
                         '-msglevel', 'all=4'], stdout=PIPE, stdin=PIPE, stderr=PIPE)
         self.properties_thread.start()
         self.parse_output_thread.start()
+        self.parse_errors_thread.start()
         while True:
             command = self.queue.get(True)
             self.process.stdin.write(('%s\n' % command).encode())
@@ -51,17 +55,17 @@ class MPlayerThread(Thread):
                             }
             for p in self.properties.keys():
                 if p == 'time_left': continue
-                self.queue.put('get_property %s' % p)
+                self.queue.put('pausing_keep_force get_property %s' % p)
 
     def parse_output(self):
         self.log.debug('Running parse_output thread for mplayer')
         while True:
             exit_code = self.process.poll()
             if exit_code is not None:
-                self.log.debug('mplayer exit code: %s' % exit_code)
+                self.log.critical('mplayer exit code: %s' % exit_code)
                 break
             line = self.process.stdout.readline().decode()
-            self.mp_log.info('stdout: %s' % line.replace('\n', ''))
+            self.process_log.info('stdout: %s' % line.replace('\n', ''))
             if re.search('^ANS_.*=.*$', line):
                 k, v = line.replace('ANS_', '').replace('\n', '').split('=')
                 if k != 'ERROR':
@@ -73,10 +77,18 @@ class MPlayerThread(Thread):
                 self.properties['time_left'] = ceil(self.properties['length'] - self.properties['time_pos'])
                 self.properties['percent_pos'] = int(self.properties['percent_pos'])
             except BaseException as e:
-                self.log.debug('unexpected value of property: %s' % e)
+                self.log.error('unexpected value of property: %s' % e)
                 self.properties['volume'] = 0
                 self.properties['length'] = 0
                 self.properties['time_pos'] = 0
                 self.properties['time_left'] = 0
                 self.properties['percent_pos'] = 0
 
+    def parse_errors(self):
+        self.log.debug('Running parse_errors thread for mplayer')
+        while True:
+            exit_code = self.process.poll()
+            if exit_code is not None:
+                break
+            line = self.process.stderr.readline().decode()
+            self.process_log.warning('stderr: %s' % line.replace('\n', ''))
