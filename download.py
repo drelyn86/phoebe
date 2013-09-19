@@ -24,7 +24,7 @@ class DLThread(Thread):
     def __init__(self, queue, logger=Null()):
         self.logger = logger
         self.log = self.logger.getLogger('phoebe.download.DLThread')
-        self.log.debug('YouTubeDLThread initialized')
+        self.log.debug('DLThread initialized')
         self.ytdl_log = self.logger.getLogger('phoebe.download.process')
         Thread.__init__(self)
         self.queue = queue
@@ -40,7 +40,7 @@ class DLThread(Thread):
                 if line:
                     self.ytdl_log.info('%s stdout: %s' % (dlid, line.replace('\n', '')))
             else:
-                self.log.debug('%s: youtube-dl exit_code: %s' % (dlid, exit_code))
+                self.log.info('%s: youtube-dl exit_code: %s' % (dlid, exit_code))
                 stdout = self.downloads[dlid]['process'].stdout.read().decode()
                 if stdout:
                     self.ytdl_log.info('%s process ended, final stdout: %s' % (dlid, stdout))
@@ -68,12 +68,12 @@ class DLThread(Thread):
             if exit_code is None:
                 line = self.downloads[dlid]['process'].stderr.readline().decode()
                 if line:
-                    self.ytdl_log.info('%s stderr: %s' % (dlid, line.replace('\n', '')))
+                    self.ytdl_log.warning('%s stderr: %s' % (dlid, line.replace('\n', '')))
                     self.downloads[dlid]['error'] = line.replace('\n', '')
             else:
                 stderr = self.downloads[dlid]['process'].stderr.read().decode()
                 if stderr:
-                    self.ytdl_log.info('%s process ended, final stderr: %s' % (dlid, stderr))
+                    self.ytdl_log.warning('%s process ended, final stderr: %s' % (dlid, stderr))
                     line = stderr.splitlines()[-1]
                     self.downloads[dlid]['error'] = line
 
@@ -81,7 +81,7 @@ class DLThread(Thread):
         self.log.debug('Running DLThread')
         while True:
             newdl = self.queue.get(True)
-            self.log.debug('New download found in queue: %s' % newdl)
+            self.log.info('New download found in queue: %s' % newdl)
             dlid = newdl['id']
             download_dir = newdl['download_dir']
             url = newdl['url']
@@ -91,7 +91,7 @@ class DLThread(Thread):
                 self.downloads[dlid][k] = v
 
             if path.isfile(path.join(download_dir, dlid)):
-                self.log.debug('File already exists: %s' % dlid)
+                self.log.info('File already exists: %s' % dlid)
                 self.downloads[dlid]['percent'] = '1000.0%'
                 self.downloads[dlid]['status'] = 'complete'
                 break
@@ -102,7 +102,7 @@ class DLThread(Thread):
             process_args[3] = path.join(download_dir, dlid)
             process_args[-1] = url
 
-            self.log.debug('Opening youtube-dl process: %s' % dlid)
+            self.log.info('Opening youtube-dl process: %s' % dlid)
             self.downloads[dlid]['process'] = Popen(process_args,
                     stdout=PIPE, stderr=PIPE)
 
