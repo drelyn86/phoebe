@@ -1,21 +1,29 @@
 import json
 from os import path
+from null import Null
 
 class LocalStorage(dict):
-    def __init__(self, storage_path):
+    def __init__(self, storage_path, logger=Null()):
+        self.logger = logger
+        self.log = self.logger.getLogger('phoebe.local_storage.LocalStorage')
+        self.log.debug('LocalStorage object initialized: %s' % storage_path)
         self.storage_path = storage_path
         if path.isfile(storage_path):
+            self.log.info('Loading existing file: %s' % storage_path)
             self.load()
         else:
+            self.log.info('Saving new file: %s' % storage_path)
             self.storage = {}
             self.save()
 
     def load(self):
+        self.log.info('Loading file: %s' % self.storage_path)
         storage_file = open(self.storage_path, 'r')
         self.storage = json.load(storage_file)
         storage_file.close()
 
     def save(self):
+        self.log.info('Saving file: %s' % self.storage_path)
         storage_file = open(self.storage_path, 'w')
         json.dump(self.storage, storage_file)
         storage_file.close()
