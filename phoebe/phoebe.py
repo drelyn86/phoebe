@@ -1,11 +1,10 @@
 import random
-from os import path
+from os import path, mkdir
 from download import DLThread
 from local_storage import LocalStorage
 from mplayer import MPlayerThread
 from null import Null
 from reddit import Reddit
-from subprocess import Popen, PIPE
 from threading import Thread
 from time import time, sleep
 from queue import Queue
@@ -26,6 +25,9 @@ class Phoebe(Thread):
         self.playing = False
         self.buffering = False
 
+        if not path.isdir(config_dir):
+            mkdir(config_dir)
+
         self.config_dir = config_dir
 
         self.log.debug('Loading history file')
@@ -39,7 +41,16 @@ class Phoebe(Thread):
           and ('reddit_password' in self.settings.keys()):
             self.reddit.login(self.settings['reddit_username'], self.settings['reddit_password'])
 
+        if 'download_dir' not in self.settings.keys():
+            self.settings['download_dir'] = path.join(path.expanduser('~'), 'Downloads', 'phoebe')
+
+        if not path.isdir(self.settings['download_dir']):
+            mkdir(self.settings['download_dir'])
+
         self.mpq = Queue()
+        # TODO: vlc backend support. There should also be an auto-detected fallback
+        if 'backend' not in self.settings.keys():
+            self.settings['backend'] = 'mplayer'
         if self.settings['backend'] == 'mplayer':
             self.mp = MPlayerThread(queue=self.mpq, logger=self.logger)
         self.mp.daemon = True
@@ -97,6 +108,7 @@ class Phoebe(Thread):
         self.stop()
 
         self.playing = True
+        # TODO: handle IndexError
         f_path = path.join(self.settings['download_dir'], self.playlist[idx]['id'])
         if path.isfile(f_path):
             self.log.debug('File exists. Loading file to mplayer process: %s' % idx)
